@@ -1,67 +1,38 @@
 # 🚀 From Code to Insights
-*A Software Engineer’s Journey in the World of Data*
+*A Software Engineer’s Journey into the World of Data*
 
-Welcome! This is a portfolio showcasing my transition from **Software Engineer** to **Data Specialist**, with a collection of projects which demonstrate different aspects of the data analysis process.
+Welcome to my portfolio! This space showcases my transformation from a Software Engineer to a Data Specialist, with hands-on projects that demonstrate my skills in data analysis, statistical modelling, and business insight generation.
 
 ---
 
-## 👋 About Me
-
+## 👨‍💻 About Me
 Hi, I’m **David** — a Software Engineer with a passion for data.
-After several years building and maintaining scalable systems that collect millions of usage data daily,  I realised the true power of a business lies in the effective use of **data** to uncover insights and drive decision making.
+After several years building and maintaining scalable systems that collect millions of usage data, I realised the true power of a business lies in the effective use of **data** to uncover insights and drive decision making.
 
-This is the main reason why I’m pursuing a Master Degree of Predictive Analytics, with the focus on **Finance and Investment**. This course equips me with a deep understanding of financial market operations, investment strategies, economic and econometric modelling
+This passion led me to pursue a **Master of Predictive Analytics** at Curtin University, with a focus on Finance and Investment. Through this program, I’ve gained:
+- A strong foundation in financial markets and investment strategy
+- Hands-on skills in statistical modeling and economic forecasting
+- Proficiency in tools like Excel, R, and Python
 
-
-🎯 Currently, I'm seeking internship opportunities in Data Science or Business Consulting roles to apply my skills and learn from real-world challenges.
+🎯 I'm actively seeking internship opportunities in Data Science or Business Consulting to apply my skillset to real-world challenges and deliver data-driven value.
 
 ---
 
-## 🗂️ Selected Projects
-
+## 🗂️ Featured Projects
 ### 1. 📈 Fuel Price Analysis Across Perth  
-**Tools and skills:** Excel, Data Visualisation
+**Skills:** Excel, Pivot Tables, Data Visualization, Time-Series, Geo Mapping
 
-**Summary:** Analysed daily fuel prices from multiple suburbs in Perth within a month. Used time-series analysis and geospatial mapping to detect pricing clusters and patterns.
+**Summary:** Analysed daily fuel prices across Perth suburbs to uncover weekly price cycles, identify brand pricing strategies, and detect geographical pricing clusters.
 
-**Approaches:**
-- First, I scraped the [FuelWatch feed](https://www.fuelwatch.wa.gov.au) which includes information about Perth's service station. 
-- Next, after looking at the summary of the dataset, I  make some related questions in order to get insights, for example, is there a weekly price cycle, or is there any geographical cluster across suburbs.
-- Then, I use Excel's tools like Pivot table, calculation functions, and visualising data using different chart types (1-dimension and n-dimension chart) to find the answers to those questions
-- Finally, I come up with some interesting insights as belows
-
-**Key insights:**  
-
-![FuelPrice.png](FuelPrice.png)
-- There is a weekly fuel pricing cycle in Perth: It peaks every Wednesday and gradually declines throughout the week, reaching the lowest point on Tuesdays.  
-- Fuel prices varied significantly across suburbs: The northernmost part formed a cluster of high average fuel prices, whereas the southernmost part generally showed lower average fuel prices.
-- For each fuel type, certain brands offer lower prices than others, typically *FastFuel 24/7*, *Costco*, and *Burk*.
-- Some fuel types show strong price correlations, making it possible to predict the price of one fuel type using the others with a high degree of accuracy. (e.g 98 RON, PULP, vs. ULP)  
-
-➡️ [View Project](https://curtin-my.sharepoint.com/:x:/g/personal/22802495_student_curtin_edu_au/EScKRx-m-IZKv0GUF4VSYXkBBMaQaK63WZbWk8ccUXVmUQ?e=WPCciL)
+➡️ [View Project](FuelPrice/fuelprice.md)
 
 ---
 
-### 2. 🏋️ Gym Member Churn Prediction  
-**Tools:** scikit-learn, Matplotlib  
-**Summary:** Developed classification models to predict gym member attrition using behavioral and demographic features. Evaluated models using precision, recall, and F1-score.  
+### 2. 😄 Happiness Score Prediction  
+**Tools and skills:** R Programming, EDA, Predictive Modeling, Regression Evaluation
+
+**Summary:** Built regression models to predict national happiness scores using socioeconomic features. Evaluated model performance using R-squared and Mean Squared Error (MSE).
+
+
 ➡️ [View Project](link-to-project-folder)
-
----
-
-### 3. 🚌 Public Transport Usage Dashboard  
-**Tools:** Power BI  
-**Summary:** Created an interactive dashboard to visualize public transport usage by time, mode, and suburb. Built KPI cards and heatmaps for peak usage insights.  
-➡️ [View Project](link-to-project-folder)
-
----
-
-### 4. 💹 Market Sentiment from Financial News  
-**Tools:** TextBlob, Python  
-**Summary:** Collected and analyzed financial headlines to assign sentiment scores and visualize correlations with stock movements. Demonstrated ability to integrate text data into numerical insights.  
-➡️ [View Project](link-to-project-folder)
-
----
-
-## 📁 Repository Structure
 

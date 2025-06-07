@@ -1,0 +1,620 @@
+---
+title: "Happiness Data Analysis"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(viridis)
+library(corrplot)
+library(gridExtra)
+```
+
+## 1. Data Loading and Initial Exploration
+
+```{r load_data}
+# Read the data
+happiness_data <- read.csv("Happiness-data.csv")
+
+# Clean column names (convert to lowercase and replace dots with underscores)
+names(happiness_data) <- tolower(gsub("\\.", "_", names(happiness_data)))
+
+# Display initial structure and summary
+str(happiness_data)
+summary(happiness_data)
+
+# Get a comprehensive overview of the data
+data_overview <- happiness_data[,-c(1,2)] %>%
+  summarise(across(everything(), list(
+    n = ~sum(!is.na(.)),
+    missing = ~sum(is.na(.)),
+    unique = ~n_distinct(., na.rm = TRUE),
+    mean = ~mean(., na.rm = TRUE),
+    sd = ~sd(., na.rm = TRUE),
+    min = ~min(., na.rm = TRUE),
+    max = ~max(., na.rm = TRUE)
+  )))
+
+# Reshape the overview for better readability
+data_overview_long <- data_overview %>%
+  pivot_longer(everything(), 
+               names_to = c("variable", "statistic"),
+               names_pattern = "(.*)_(.*)") %>%
+  pivot_wider(names_from = statistic, values_from = value)
+
+print("Data Overview:")
+print(data_overview_long)
+```
+
+## 2. Data Cleaning and Transformation
+
+### 2.1. Remove redundant columns
+
+First of all, we look into three-related Life Ladder indexes:
+*life_ladder*, *standard_deviation_of_ladder_by_country_year*, and
+*standard_deviation_mean_of_ladder_by_country_year*. Since the scope of
+the project is to calculate the overall happiness, we retain the
+first column and remove the last two.
+
+```{r column_life_ladder_removal}
+happiness_data_cleaned <- happiness_data[,-c(15,16)]
+str(happiness_data_cleaned)
+```
+
+Next, we look into the GINI-related columns, which are
+*gini_index\_\_world_bank_estimate*, *gini_index**world_bank_estimate**\_average_2000_16\*, and *gini_of_household_income_reported_in_gallup\_\_by_wp5_year*. First of all, 
+the *gini_index**world_bank_estimate**\_average_2000_16\* column
+needs to be removed because we're focusing on data over time. Next,
+there are numerous missing data points in *gini_index\_\_world_bank_estimate*,
+as there are in *gini_of_household_income_reported_in_gallup\_\_by_wp5_year\*. Therefore, we remove all these.
+
+```{r column_gini_removal}
+happiness_data_cleaned <- happiness_data_cleaned[,-c(15,16,17)]
+str(happiness_data_cleaned)
+```
+
+Finally, coming to 'most_people_can_be_trusted' columns, we get rid of them (too much missing data). 
+
+```{r column_trusted_removal}
+happiness_data_cleaned <- happiness_data_cleaned[,-c(15,16,17,18,19,20,21)]
+str(happiness_data_cleaned)
+```
+
+### 2.2. Handle missing values
+
+```{r data_cleaning}
+# Check for missing values
+missing_values <- colSums(is.na(happiness_data_cleaned))
+missing_percentage <- (missing_values / nrow(happiness_data_cleaned)) * 100
+missing_summary <- data.frame(
+  column = names(missing_values),
+  missing_count = missing_values,
+  missing_percentage = missing_percentage
+) %>%
+  arrange(desc(missing_percentage))
+
+# Display columns with missing values
+print("Columns with missing values:")
+print(missing_summary[missing_summary$missing_count > 0, ])
+
+# Handle missing values
+happiness_data_cleaned <- happiness_data_cleaned %>%
+  group_by(country_name) %>%
+  # Fill missing values in numeric columns with median
+  mutate(across(where(is.numeric), ~ifelse(is.na(.), median(., na.rm = TRUE), .))) %>%
+  # Fill missing values in character columns with mode
+  mutate(across(where(is.character), ~ifelse(is.na(.), names(sort(table(.), decreasing = TRUE))[1], .))) %>%
+  ungroup() %>%
+  mutate(across(where(is.numeric), ~replace(.,is.na(.),0)))
+
+summary(happiness_data_cleaned)
+colSums(is.na(happiness_data_cleaned))
+```
+
+### 2.3. Data Quality Checks
+
+```{r outlier_check}
+attach(mtcars)
+par(mfrow=c(2,3))
+boxplot(happiness_data_cleaned$life_ladder, main = "Boxplot of life_ladder")
+boxplot(happiness_data_cleaned$log_gdp_per_capita, main = "Boxplot of log_gdp_per_capita")
+boxplot(happiness_data_cleaned$social_support, main = "Boxplot of social_support")
+boxplot(happiness_data_cleaned$healthy_life_expectancy_at_birth, main = "Boxplot of healthy_life_expectancy_at_birth")
+boxplot(happiness_data_cleaned$freedom_to_make_life_choices, main = "Boxplot of freedom_to_make_life_choices")
+
+# The boxplots below show that the response (life_ladder) has no outliers, but predictors have a few outliers. 
+```
+
+```{r data_quality}
+# Check for outliers in selected variables
+outlier_check <- happiness_data_cleaned %>%
+  select(life_ladder, log_gdp_per_capita, social_support, 
+         healthy_life_expectancy_at_birth, freedom_to_make_life_choices) %>%
+  gather(variable, value) %>%
+  group_by(variable) %>%
+  summarise(
+    Q1 = quantile(value, 0.25, na.rm = TRUE),
+    Q3 = quantile(value, 0.75, na.rm = TRUE),
+    IQR = IQR(value, na.rm = TRUE),
+    Lower = Q1 - 1.5 * IQR,
+    Upper = Q3 + 1.5 * IQR,
+    outliers = sum(value < (Q1 - 1.5 * IQR) | value > (Q3 + 1.5 * IQR), na.rm = TRUE)
+  )
+
+print("Outlier Analysis:")
+print(outlier_check)
+```
+
+## 3. Data Visualisation
+   
+### 3.1. Distribution of Happiness Scores (Life Ladder)
+
+```{r happiness_distribution}
+# Histogram of happiness scores
+ggplot(happiness_data_cleaned, aes(x = life_ladder)) +         
+  geom_histogram(bins = 30, fill = "steelblue", color = "black") +
+  labs(title = "Distribution of Happiness Scores",
+       x = "Happiness Score (Life Ladder)",
+       y = "Frequency") +
+  theme_minimal()
+
+# Below, the response variable is shown to be more or less normal in distribution (some skewness to the right, but not extreme. 
+```
+
+### 3.2. Happiness scores across countries
+
+```{r top_bottom_countries}
+# Calculate average happiness by country
+country_avg <- happiness_data_cleaned %>%
+  group_by(country_name) %>%
+  summarise(avg_happiness = mean(life_ladder, na.rm = TRUE)) %>%
+  arrange(desc(avg_happiness))
+
+world_map <- map_data("world")
+# Refine country names
+country_avg$country_name <- trimws(country_avg$country_name)
+country_avg$country_name <- tolower(country_avg$country_name)
+world_map$region <- trimws(world_map$region)
+world_map$region <- tolower(world_map$region)
+
+# Merge with map data
+map_data <- left_join(world_map, country_avg, 
+                     by = c("region" = "country_name"))
+
+# Plot the map
+p1 <- ggplot(map_data, aes(x = long, y = lat, group = group, fill = avg_happiness)) +
+  geom_polygon() +
+  scale_fill_viridis(name = "Happiness Score") +
+  labs(title = "Global Happiness Distribution",
+       x = "", y = "") +
+  theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank())
+
+# Top 10 happiest countries
+top_10 <- head(country_avg, 10)
+bottom_10 <- tail(country_avg, 10)
+
+# Plot top 10
+p2 <- ggplot(top_10, aes(x = reorder(country_name, avg_happiness), y = avg_happiness)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Top 10 Happiest Countries",
+       x = "Country",
+       y = "Average Happiness Score") +
+  theme_minimal()
+
+# Plot bottom 10
+p3 <- ggplot(bottom_10, aes(x = reorder(country_name, avg_happiness), y = avg_happiness)) +
+  geom_bar(stat = "identity", fill = "red") +
+  coord_flip() +
+  labs(title = "Bottom 10 Happiest Countries",
+       x = "Country",
+       y = "Average Happiness Score") +
+  theme_minimal()
+lay <- rbind(c(1,1),c(1,1),c(1,1),c(2,3),c(2,3))
+grid.arrange(p1, p2, p3, layout_matrix = lay)
+```
+
+### 3.3. Happiness vs some selected factors
+
+```{r happiness_factors}
+# Create scatter plots for the factors
+p1 <- ggplot(happiness_data_cleaned, aes(x = log_gdp_per_capita, y = life_ladder)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Happiness vs GDP per capita",
+       x = "Log GDP per capita",
+       y = "Happiness Score") +
+  theme_minimal()
+
+p2 <- ggplot(happiness_data_cleaned, aes(x = social_support, y = life_ladder)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Happiness vs Social Support",
+       x = "Social Support",
+       y = "Happiness Score") +
+  theme_minimal()
+
+p3 <- ggplot(happiness_data_cleaned, aes(x = healthy_life_expectancy_at_birth, y = life_ladder)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Happiness vs Life Expectancy",
+       x = "Healthy Life Expectancy",
+       y = "Happiness Score") +
+  theme_minimal()
+
+p4 <- ggplot(happiness_data_cleaned, aes(x = freedom_to_make_life_choices, y = life_ladder)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Happiness vs Freedom",
+       x = "Freedom to Make Life Choices",
+       y = "Happiness Score") +
+  theme_minimal()
+
+# Arrange plots in a grid
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+
+# Maybe, just maybe... there is some linearity indeed based on the plots below 
+```
+
+### 3.4. Correlation Matrix
+
+```{r correlation_matrix}
+# Select numeric columns for correlation
+numeric_cols <- happiness_data_cleaned[,-c(1,2)]
+
+# Calculate correlation matrix
+cor_matrix <- cor(numeric_cols, use = "complete.obs")
+
+# Plot correlation matrix
+corrplot(cor_matrix, method = "color", type = "upper", 
+         tl.col = "black", tl.srt = 45,
+         addCoef.col = "black", number.cex = 0.3)
+```
+
+## 4. Key Observations
+
+1.  **Happiness Distribution**: The distribution of happiness scores
+    shows a normal-like distribution with a mean score around 5.4
+2.  **Geographic Patterns**: Northern European countries tend to have
+    higher happiness scores, while African countries generally show
+    lower scores
+3.  **Key Factors**:
+    -   Economic development (GDP per capita) shows a strong positive
+        correlation with happiness, but it's not the only factor
+    -   Social support systems and healthcare are also important
+        factors
+
+## 5. Modelling
+
+### 5.1. Scaling & train and test set split
+
+```{r}
+# our data set so far
+head(happiness_data_cleaned)
+```
+
+```{r}
+# next, delete 'country_name' and 'year' because they are not relevant. They are not relevant because all we want to do is find a model that best predicts life_ladder. So, we can treat each life_ladder observation as an individual instance. 
+happiness_data_cleaned <- happiness_data_cleaned[, -c(1,2)]
+happiness_data_cleaned
+# Just a reminder, life_ladder is the response variable. 
+```
+
+```{r}
+# Define min-max scaling function
+min_max_scale <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+# Apply scaling directly to predictors 
+happiness_data_cleaned[, 2:12] <- lapply(happiness_data_cleaned[, 2:12], min_max_scale)
+```
+
+```{r}
+# create a training set and a testing/validation set
+n <- nrow(happiness_data_cleaned)
+set.seed(1)
+tr <- sample(1:n, size=0.8*n)
+hdc.tr <- happiness_data_cleaned[tr,]
+hdc.ts <- happiness_data_cleaned[-tr,]
+```
+ 
+### 5.2. Decision tree method
+
+```{r}
+#decision trees
+library(tree)
+mod.dt.1 <- tree(life_ladder~.,data=hdc.tr)
+summary(mod.dt.1)
+```
+
+```{r}
+#using decision trees, the features used are:
+
+#"log_gdp_per_capita"         
+#"healthy_life_expectancy_at_birth"
+#"positive_affect"                  
+#"social_support"                  
+#"democratic_quality"  
+
+#There are 8 terminal nodes. 
+```
+
+```{r}
+#plotting the decision tree
+plot(mod.dt.1)
+text(mod.dt.1, pretty = 0)
+```
+
+```{r}
+head(hdc.ts,1) #the first observation of the test set
+#Interpretation of the plot above: First of all, note that log_gdp_per_capita appears a few times throughout the tree. This shows it is an influential predictor. Now, taking the first observation of the test set as an example, its log_gdp_per_capita = 0.6230771 < 0.868319. This leads to healthy_life_expectancy_at_birth = 0.6666667 < 0.787891 and back to log_gdp_per_capita = 0.6230771 < 0.681817. So, the expected value of the response variable for this instance is 4.170. 
+```
+
+```{r}
+dt.prd.1 <- predict(object = mod.dt.1, newdata = hdc.ts) #predictions
+dt.mse.1 <- mean((dt.prd.1-hdc.ts$life_ladder)^2)
+dt.mse.1 #mse
+```
+
+### 5.3. Decision tree (pruned version)
+
+```{r}
+#pruned version of the decision tree
+cv.t <- cv.tree(mod.dt.1, FUN = prune.tree)
+plot(cv.t$size, cv.t$dev, xlab="size of nodes", ylab="error", type="p")
+#the plot shows that after 5, size of node results in less improvement 
+```
+
+```{r}
+mod.dt.2 <- prune.tree(mod.dt.1, best=5)
+summary(mod.dt.2)
+plot(mod.dt.2)
+text(mod.dt.2, pretty=0)
+#the tree is now simpler with only 5 terminal nodes
+```
+
+```{r}
+dt.prd.2 <- predict(mod.dt.2, newdata=hdc.ts) #predictions
+dt.mse.2 <- mean((dt.prd.2-hdc.ts$life_ladder)^2)
+dt.mse.2 #mse
+```
+
+```{r}
+#Comparison between the 2 decision trees: the first decision tree has a lower mse of 0.326; 2nd decision tree (pruned version) has a higher mse of 0.415. 
+```
+
+### 5.4. Random forest method
+
+```{r}
+#random forest
+library(caret)
+library(randomForest)
+
+set.seed(1)
+
+x_train <- hdc.tr[, -1] #predictors 
+y_train <- hdc.tr[[1]] #response is the first column
+
+rf.c <- trainControl(method = "cv", number = 5) #5-fold cv
+
+rf_tune_grid <- expand.grid(mtry = c(3,5,7,9) #no. of randomly selected predictors per split
+                          ) 
+
+rf_model <- train(
+  x = x_train,
+  y = y_train,
+  method = "rf",
+  trControl = rf.c,
+  tuneGrid = rf_tune_grid,
+  ntree = 150, #number of trees used
+  sample.fraction=0.8, #80% of data per tree
+  replace=TRUE #data sampling done with replacement 
+)
+```
+
+```{r}
+rf_results <- data.frame(mtry=rf_model$results$mtry, MSE=(rf_model$results$RMSE)^2)
+rf_results
+#Results show that mtry=5 gives the best result. 
+```
+
+```{r}
+x_test <- hdc.ts[, -1] #predictors
+y_test <- hdc.ts[[1]] #response
+
+rf_predictions <- predict(rf_model, newdata = x_test)
+
+rf.mse <- mean((rf_predictions-y_test)^2)
+rf.mse #mse
+```
+
+### 5.5. K-nearest-neighbor method
+
+```{r}
+library(caret)
+
+train.x <- hdc.tr[, -which(names(hdc.tr) == "life_ladder")] #remove response 
+train.y <- hdc.tr$life_ladder #the response 
+
+knn.c <- trainControl(method = "cv", number = 5) #use 5-fold cv
+
+#odd k-value options 
+knn.grid <- expand.grid(k = c(1, 3, 5, 7, 9))
+
+#train KNN model 
+set.seed(1) 
+knn.fit <- train(
+  x = train.x,
+  y = train.y,
+  method = "knn",
+  trControl = knn.c,
+  tuneGrid = knn.grid
+)
+
+#view results
+knn_results_df <- data.frame(
+  k = knn.fit$results$k, #the k value
+  MSE = (knn.fit$results$RMSE)^2 #the corresponding cv MSE
+  )
+
+print(knn_results_df)
+#The result below shows that k=3 results in the lowest cv MSE. 
+```
+
+```{r}
+#perform the model on hdc.ts 
+library(FNN)
+
+test.x <- hdc.ts[, -which(names(hdc.ts) == "life_ladder")]
+test.y <- hdc.ts$life_ladder
+
+knn.pred <- knn.reg(train = train.x, test = test.x, y = train.y, k = 3)
+
+#Compute Test MSE
+knn.mse <- mean((knn.pred$pred - test.y)^2)
+knn.mse
+```
+
+### 5.6. Linear Regression with Best Subset Selection
+
+```{r}
+#linear regression
+library(leaps)
+AllSubsets <- regsubsets(life_ladder ~ ., nvmax = 11, data = hdc.tr)
+AllSubsets.summary <- summary(AllSubsets)
+AllSubsets.summary$outmat
+```
+
+```{r}
+par(mfrow = c(1, 3))
+par(cex.axis = 1.5)
+par(cex.lab = 1.5)
+plot(1:11, AllSubsets.summary$adjr2, xlab = "subset size", ylab = "adjusted R-squared", type = "b")
+plot(1:11, AllSubsets.summary$cp, xlab = "subset size", ylab = "Mallows' Cp", type = "b")
+plot(1:11, AllSubsets.summary$bic, xlab = "subset size", ylab = "BIC", type = "b")
+#The plots below show that after reaching 8 features, there is little room for improvement. 
+```
+
+```{r}
+#do linear regression with the 8 chosen features
+lr <- lm(life_ladder ~ log_gdp_per_capita + social_support + healthy_life_expectancy_at_birth + freedom_to_make_life_choices +  perceptions_of_corruption + positive_affect + confidence_in_national_government + delivery_quality, data = hdc.tr)
+
+summary(lr)
+#Conclusion: The small p-values of the features (except the intercept) and the model indicate that they are all significant. 
+```
+
+```{r}
+#check for multi-col...
+library(car)
+vif.values <- vif(lr)
+vif.values
+#Conclusion: no multi-col detected
+```
+
+```{r}
+#mse
+lr.predict <- predict(lr, newdata=hdc.ts)
+lr.mse <- mean((lr.predict-hdc.ts$life_ladder)^2)
+lr.mse
+```
+
+```{r}
+plot(lr)
+```
+
+```{r}
+#Some notes regarding the linear regression model:
+
+#The 'residuals vs fitted' plot shows (mostly) a straight horizontal line around 0 --> there is some linearity, but not completely linear as there is a slight 'u' shape. Overall,    homoscedasticity (constant variance/consistent spread of residuals) is mostly met. Homoscedasticity is important because if this assumption holds: 
+
+  #The standard errors of your coefficients are reliable.
+  #You can trust the p-values, confidence intervals, and overall statistical inferences.
+  #Your model is more likely to generalize well.
+
+#A few moderate outliers (e.g., observation 210), but no clear systematic pattern in the 'residuals vs fitted' plot.
+
+#Q-Q plot: Most points fall on or near the reference line, indicating that the residuals are approximately normally distributed. This is important for standard errors to be estimated accurately. However, there is some deviation in the tails (i.e., a few high-leverage points like 210, 949, 846).
+
+#So, outliers are a bit of a problem (not significant). However, it results in linear regression underperforming against other models like random forest (because random forest handles outliers better). Additionally, random forest captures non-linear relationships that linear regression fails to capture. This means, via random forest, more of the variance in the data set is explained (which is why in this problem, random forest scores a lower MSE than linear regression). 
+```
+
+### 5.7. Ridge regression
+
+```{r ridge_regression}
+library(glmnet)
+# Get the data ready
+x.tr <- model.matrix(
+  life_ladder ~.,
+  data = hdc.tr
+)[,-1] # creating feature set in matrix format
+x.ts <- model.matrix(
+  life_ladder ~.,
+  data = hdc.ts
+)[,-1] # creating feature set in matrix format
+y.tr <- hdc.tr$life_ladder # response
+
+# Select lambda
+lam <- cv.glmnet(
+  x = x.tr,
+  y = y.tr,
+  alpha = 0, # RIDGE
+) # estimate lambda so that MSE in TR is minimum
+blam <- lam$lambda.min # Optimum lambda
+
+# model fitting with lambda
+mod.ridge <- glmnet(x = x.tr,
+    y = y.tr,
+    alpha = 0,
+    lambda = blam)
+
+coef(mod.ridge) # coefficient of selected features
+```
+
+```{r}
+blam #optimum lambda that gives the lowest cv error
+plot(lam) #mse vs lambda plot
+```
+
+
+We end up with the model: **life_ladder** = 0.0346119 +
+*log_gdp_per_capita* x 1.1775777 + *social_support* x 2.2978425 +
+*healthy_life_expectancy_at_birth* x 1.0008842 +
+*freedom_to_make_life_choices* x 0.6272184 + *generosity* x
+0.2370890 + *perceptions_of_corruption* x -0.5902386 +
+*positive_affect* x 1.6135265 + *negative_affect* x 0.2442540 +
+*confidence_in_national_government* x -0.4376020 +
+*democratic_quality* x 0.2438653 + *delivery_quality* x 1.0515937 
+
+Now we evaluate the MSE of the Ridge Regression
+
+```{r ridge_MSE}
+# predict
+pr.ridge <- predict(object = mod.ridge,
+        newx = x.ts,
+        alpha = 0,
+        s = blam)
+ridge.mse = mean((pr.ridge - hdc.ts$life_ladder)^2)
+ridge.mse
+```
+
+So, we have a MSE (Ridge) of 0.4563913. 
+
+## 6. Discussion
+
+```{r discussion}
+df.mse <- data.frame(dt.mse.1,dt.mse.2,rf.mse,knn.mse,lr.mse,ridge.mse)
+df.mse
+```
