@@ -3,10 +3,8 @@
 
 Welcome to my portfolio! This space showcases my transformation from a Software Engineer to a Data Specialist, with hands-on projects that demonstrate my skills in data analysis, statistical modelling, and business insight generation.
 
----
-
 ## 👨‍💻 About Me
-Hi, I’m **David** — a Software Engineer with a passion for data.
+I’m **David** — a Software Engineer with a passion for data.
 After several years building and maintaining scalable systems that collect millions of usage data, I realised the true power of a business lies in the effective use of **data** to uncover insights and drive decision making.
 
 This passion led me to pursue a **Master of Predictive Analytics** at Curtin University, with a focus on Finance and Investment. Through this program, I’ve gained:
@@ -16,9 +14,8 @@ This passion led me to pursue a **Master of Predictive Analytics** at Curtin Uni
 
 🎯 I'm actively seeking internship opportunities in Data Science or Business Consulting to apply my skillset to real-world challenges and deliver data-driven value.
 
----
-
 ## 🗂️ Featured Projects
+
 ### 1. 📈 Fuel Price Analysis Across Perth  
 **Skills:** Excel, Pivot Tables, Data Visualization, Time-Series, Geo Mapping
 
@@ -26,13 +23,10 @@ This passion led me to pursue a **Master of Predictive Analytics** at Curtin Uni
 
 ➡️ [View Project](FuelPrice/fuelprice.md)
 
----
-
 ### 2. 😄 Happiness Score Prediction  
 **Tools and skills:** R Programming, EDA, Predictive Modeling, Regression Evaluation
 
 **Summary:** Built regression models to predict national happiness scores using socioeconomic features. Evaluated model performance using R-squared and Mean Squared Error (MSE).
 
-
-➡️ [View Project](link-to-project-folder)
+➡️ [View Project](HappinessPrediction/happinessprediction.md)
 

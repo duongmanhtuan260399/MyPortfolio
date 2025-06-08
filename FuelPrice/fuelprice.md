@@ -25,7 +25,7 @@ The goal of this analysis is to uncover trends and answer key questions such as:
 ---
 
 ### 📊 Key Insights
-- Weekly Price Cycle: Perth's fuel prices follow a distinct cycle: Prices peak every Wednesday and gradually decrease until Tuesday, when they're at their lowest. 
+- Weekly Price Cycle: Perth's fuel prices follow a distinct cycle: Prices peak every Wednesday and gradually decrease until Tuesday, at their lowest. 
 - Geographic Price Clustering:
   - North Perth tends to have higher average prices. 
   - South Perth generally offers cheaper fuel options. 
