@@ -30,3 +30,21 @@ This passion led me to pursue a **Master of Predictive Analytics** at Curtin Uni
 
 ➡️ [View Project](HappinessPrediction/happinessprediction.md)
 
+## 📜 Certifications
+
+In addition to personal projects, I've successfully completed an online certification:
+
+### 🎓 1. **Udacity Data Analyst Nanodegree**
+
+This certification has significantly strengthened my skills in key areas of data analysis:
+
+- **Practical Statistics**: Applying inferential statistics and probability concepts to real-world problems, such as conducting A/B testing and developing supervised learning models.
+
+- **Data Wrangling**: Effectively gathering, accessing, and cleaning datasets using Python.
+
+- **Data Visualization**: Crafting insightful visual narratives by leveraging key data visualization principles.
+
+[View Certificate](https://www.udacity.com/certificate/e/f30275e2-de02-11ed-ada9-5f14a03b3386)  
+[View Course Projects](UdacityDataAnalyst)
+
+
